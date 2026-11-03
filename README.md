@@ -3,8 +3,8 @@
 A desktop plugin that shows Hermes Pulse cards in the Hermes desktop app, with the same actions as the Conduit app.
 
 ## Requirements
-- Hermes with the Conduit notifier plugin `conduit_push` (the Pulse API at `/api/plugins/conduit_push/pulse/...`).
-- For the full feed (calendar, contacts, location), also a paired Conduit phone app. Without it, cards that depend on the phone are missing.
+- Hermes with the Conduit notifier plugin [`conduit_push`](https://github.com/kaishi00/hermes-conduit-notifier) (the Pulse API at `/api/plugins/conduit_push/pulse/...`).
+- For the full feed (calendar, contacts, location), also a paired [Conduit](https://github.com/kaishi00/hermes-conduit) phone app. Without it, cards that depend on the phone are missing.
 - The Hermes desktop app with plugin support (`desktop-plugins`).
 
 ## Installation
