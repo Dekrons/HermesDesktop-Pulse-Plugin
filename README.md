@@ -23,7 +23,7 @@ A Pulse item appears in the sidebar, and the palette command "Open Pulse" is ava
 - Phone-only settings (lock screen privacy, location, shop watching, older-chat reading, model) are not in the desktop plugin; change them in the Conduit app.
 
 ## Status
-Checked for syntax only. The settings save through the same Pulse API as the Conduit app (PUT); that call has not yet been confirmed in a running app. Loading the plugin and the actions have not yet been confirmed in a running app. Report problems as an issue.
+Tested by the author in the Hermes desktop app on Windows: the plugin loads and works.
 
 ## License
 MIT, see [LICENSE](LICENSE).
