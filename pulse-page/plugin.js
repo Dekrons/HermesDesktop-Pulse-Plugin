@@ -293,10 +293,257 @@ function Card({ card, reload }) {
   )
 }
 
+// ---------- Settings (same options as the Pulse screen in the Conduit app, minus phone-only ones) ----------
+const WEEKDAYS = [
+  ['Mon', 0],
+  ['Tue', 1],
+  ['Wed', 2],
+  ['Thu', 3],
+  ['Fri', 4],
+  ['Sat', 5],
+  ['Sun', 6],
+]
+const NUDGE_LABEL = {
+  gentle: ['Gentle', 'A heads-up on what is open or coming due: about one reminder a day.'],
+  balanced: ['Balanced', 'A heads-up on what is open or coming due: three reminders a day.'],
+  eager: ['Eager', 'More reminders and quicker follow-ups: up to six a day.'],
+}
+
+function Section({ title, hint, children }) {
+  return e(
+    'div',
+    { className: 'flex flex-col gap-3 rounded-2xl border border-(--ui-stroke-secondary) bg-(--ui-bg-card) p-5' },
+    e('div', { className: 'text-sm font-semibold text-(--ui-text-primary)' }, title),
+    hint ? e('div', { className: 'text-xs text-(--ui-text-tertiary)' }, hint) : null,
+    children
+  )
+}
+
+function Toggle({ label, desc, checked, onChange, disabled }) {
+  return e(
+    'label',
+    { className: 'flex cursor-pointer flex-col gap-1' },
+    e(
+      'div',
+      { className: 'flex items-center justify-between gap-4' },
+      e('span', { className: 'text-sm text-(--ui-text-primary)' }, label),
+      e('input', {
+        type: 'checkbox',
+        checked: !!checked,
+        disabled: !!disabled,
+        onChange: (ev) => onChange(ev.target.checked),
+        className: 'h-5 w-9 cursor-pointer accent-(--ui-accent)',
+      })
+    ),
+    desc ? e('span', { className: 'text-xs text-(--ui-text-tertiary)' }, desc) : null
+  )
+}
+
+function SettingsPanel({ onBack }) {
+  const [st, setSt] = React.useState(null)
+  const [busy, setBusy] = React.useState(false)
+  const [err, setErr] = React.useState(null)
+  const [note, setNote] = React.useState('')
+  const [addTime, setAddTime] = React.useState('')
+
+  const load = React.useCallback(() => {
+    call(BASE, 'GET')
+      .then((s) => {
+        setSt(s)
+        setNote(s.note || '')
+      })
+      .catch((x) => setErr('Failed to load settings: ' + String((x && x.message) || x)))
+  }, [])
+
+  React.useEffect(() => {
+    load()
+  }, [load])
+
+  // Each change is saved at once; the server answers with the new state.
+  const save = (patch) => {
+    setBusy(true)
+    setErr(null)
+    call(BASE, 'PUT', patch)
+      .then((s) => {
+        setSt(s)
+        setNote(s.note || '')
+        setBusy(false)
+      })
+      .catch((x) => {
+        setErr('Not saved: ' + String((x && x.message) || x))
+        setBusy(false)
+        load()
+      })
+  }
+
+  if (!st) return e('div', { className: 'p-6 text-sm text-(--ui-text-tertiary)' }, err || 'Loading…')
+
+  const days = Array.isArray(st.quiet_days) ? st.quiet_days : []
+  const times = Array.isArray(st.report_times) ? st.report_times : []
+  const nightOn = Array.isArray(st.night) && st.night.length === 2
+  const nudge = st.nudge || 'balanced'
+
+  const toggleDay = (d) => {
+    const next = days.includes(d) ? days.filter((x) => x !== d) : [...days, d].sort()
+    save({ quiet_days: next })
+  }
+  const setNight = (on, from, to) => {
+    if (!on) return save({ night: [] })
+    save({ night: [from || '22:00', to || '07:00'] })
+  }
+
+  return e(
+    'div',
+    { className: 'mx-auto flex w-full max-w-2xl flex-col gap-4 overflow-y-auto p-6' },
+    e(
+      'div',
+      { className: 'flex items-center justify-between' },
+      e('h1', { className: 'text-3xl font-bold tracking-tight text-(--ui-text-primary)' }, 'Pulse settings'),
+      e(Btn, { label: 'Back to Pulse', onClick: onBack })
+    ),
+    err ? e('div', { className: 'text-xs text-(--ui-text-secondary)' }, err) : null,
+    e(Section, { title: 'Pulse' },
+      e(Toggle, {
+        label: 'Pulse',
+        desc: 'Off: Pulse makes no cards and sends nothing.',
+        checked: st.enabled,
+        disabled: busy,
+        onChange: (v) => save({ enabled: v }),
+      })
+    ),
+    e(Section, { title: 'When Pulse speaks up', hint: 'How often Pulse brings things up.' },
+      e('div', { className: 'flex gap-2' }, Object.keys(NUDGE_LABEL).map((k) =>
+        e(Btn, { key: k, label: NUDGE_LABEL[k][0], active: nudge === k, disabled: busy, onClick: () => save({ nudge: k }) })
+      )),
+      e('div', { className: 'text-xs text-(--ui-text-tertiary)' }, NUDGE_LABEL[nudge] ? NUDGE_LABEL[nudge][1] : '')
+    ),
+    e(Section, { title: 'Look through your chats', hint: 'Pulse looks through your recent chats at these times.' },
+      e(Toggle, {
+        label: 'Look through your chats',
+        checked: st.look_ahead,
+        disabled: busy,
+        onChange: (v) => save({ look_ahead: v }),
+      }),
+      e('div', { className: 'flex flex-col gap-2' },
+        times.map((t) =>
+          e('div', { key: t, className: 'flex items-center justify-between rounded-xl border border-(--ui-stroke-secondary) px-3 py-2' },
+            e('span', { className: 'text-sm text-(--ui-text-primary)' }, t),
+            e(Btn, {
+              label: 'Remove',
+              disabled: busy || times.length <= 1,
+              onClick: () => save({ report_times: times.filter((x) => x !== t) }),
+            }))
+        )
+      ),
+      e('div', { className: 'flex items-center gap-2' },
+        e('input', {
+          type: 'time',
+          value: addTime,
+          onChange: (ev) => setAddTime(ev.target.value),
+          className: 'rounded-lg border border-(--ui-stroke-secondary) bg-(--ui-bg-card) px-2 py-1 text-sm text-(--ui-text-primary)',
+        }),
+        e(Btn, {
+          label: 'Add a time',
+          disabled: busy || !addTime || times.includes(addTime) || times.length >= 12,
+          onClick: () => {
+            save({ report_times: [...times, addTime].sort() })
+            setAddTime('')
+          },
+        }))
+    ),
+    e(Section, { title: 'Morning brief', hint: 'Every day at this time: what is still open, today\u2019s calendar and reminders.' },
+      e('input', {
+        type: 'time',
+        value: st.brief_time || '07:00',
+        disabled: busy,
+        onChange: (ev) => ev.target.value && save({ brief_time: ev.target.value }),
+        className: 'w-40 rounded-lg border border-(--ui-stroke-secondary) bg-(--ui-bg-card) px-2 py-1 text-sm text-(--ui-text-primary)',
+      })
+    ),
+    e(Section, { title: 'Quiet times', hint: 'On quiet days, Pulse sends nothing on its own. It keeps remembering.' },
+      e('div', { className: 'text-sm text-(--ui-text-primary)' }, 'Quiet days'),
+      e('div', { className: 'flex flex-wrap gap-2' }, WEEKDAYS.map(([label, n]) =>
+        e(Btn, { key: n, label, active: days.includes(n), disabled: busy, onClick: () => toggleDay(n) })
+      )),
+      e(Toggle, {
+        label: 'Quiet until the end of today',
+        desc: 'Pulse stays quiet for the rest of today.',
+        checked: st.quiet_until === 'today',
+        disabled: busy,
+        onChange: (v) => save({ quiet_until: v ? 'today' : null }),
+      })
+    ),
+    e(Section, { title: 'Night', hint: 'Between these times Pulse pushes nothing; notifications wait for the morning brief.' },
+      e(Toggle, {
+        label: 'Night',
+        checked: nightOn,
+        disabled: busy,
+        onChange: (v) => setNight(v, nightOn ? st.night[0] : '22:00', nightOn ? st.night[1] : '07:00'),
+      }),
+      nightOn
+        ? e('div', { className: 'flex flex-wrap gap-4' },
+            e('label', { className: 'flex items-center gap-2 text-sm text-(--ui-text-primary)' }, 'Starts',
+              e('input', {
+                type: 'time',
+                value: st.night[0],
+                disabled: busy,
+                onChange: (ev) => ev.target.value && setNight(true, ev.target.value, st.night[1]),
+                className: 'rounded-lg border border-(--ui-stroke-secondary) bg-(--ui-bg-card) px-2 py-1 text-sm text-(--ui-text-primary)',
+              })),
+            e('label', { className: 'flex items-center gap-2 text-sm text-(--ui-text-primary)' }, 'Ends',
+              e('input', {
+                type: 'time',
+                value: st.night[1],
+                disabled: busy,
+                onChange: (ev) => ev.target.value && setNight(true, st.night[0], ev.target.value),
+                className: 'rounded-lg border border-(--ui-stroke-secondary) bg-(--ui-bg-card) px-2 py-1 text-sm text-(--ui-text-primary)',
+              })))
+        : null
+    ),
+    e(Section, { title: 'What you want from Pulse', hint: 'Pulse reads this before every report, brief and reminder. Max 1500 characters.' },
+      e('textarea', {
+        value: note,
+        maxLength: 1500,
+        rows: 4,
+        disabled: busy,
+        onChange: (ev) => setNote(ev.target.value),
+        onBlur: () => { if (note !== (st.note || '')) save({ note }) },
+        placeholder: 'What to always bring up, what to leave out',
+        className: 'w-full rounded-xl border border-(--ui-stroke-secondary) bg-(--ui-bg-card) p-3 text-sm text-(--ui-text-primary)',
+      })
+    ),
+    e(Section, { title: 'What Pulse reads' },
+      e(Toggle, {
+        label: 'Memory',
+        desc: 'Pulse keeps short notes on promises, plans and dates, so it can bring them up later.',
+        checked: st.memory,
+        disabled: busy,
+        onChange: (v) => save({ memory: v }),
+      }),
+      e(Toggle, {
+        label: 'Deadlines from Shortcuts',
+        desc: 'With memory on, Pulse also looks for deadlines in what your Shortcuts automations log.',
+        checked: st.inbox_deadlines,
+        disabled: busy,
+        onChange: (v) => save({ inbox_deadlines: v }),
+      }),
+      e(Toggle, {
+        label: 'Look things up first',
+        desc: 'Before Pulse writes to you, it can look things up and search the web when following up on a promise. It never changes anything itself.',
+        checked: st.look_first,
+        disabled: busy,
+        onChange: (v) => save({ look_first: v }),
+      })
+    ),
+    e(Section, { title: 'Not in the desktop app', hint: 'These are phone-only settings in Conduit: lock screen privacy, your location, shop watching, and older-chat reading. Change them in the Conduit app.' })
+  )
+}
+
 function PulsePage() {
   const [state, setState] = React.useState({ loading: true, error: null, cards: [] })
   const [day, setDay] = React.useState(null)
   const [view, setView] = React.useState('open')
+  const [settingsOpen, setSettingsOpen] = React.useState(false)
 
   const load = React.useCallback(() => {
     setState((s) => ({ ...s, loading: true, error: null }))
@@ -309,6 +556,7 @@ function PulsePage() {
     load()
   }, [load])
 
+  if (settingsOpen) return e(SettingsPanel, { onBack: () => { setSettingsOpen(false); load() } })
   if (state.loading) return e('div', { className: 'p-6 text-sm text-(--ui-text-tertiary)' }, 'Loading…')
   if (state.error) return e('div', { className: 'p-6 text-sm text-(--ui-red)' }, 'Failed to load Pulse: ' + state.error)
 
@@ -336,7 +584,8 @@ function PulsePage() {
         'div',
         { className: 'flex items-center gap-2' },
         e(ViewMenu, { view, setView, counts: { open: open.length, done: done.length } }),
-        e(Btn, { label: 'Refresh', onClick: load })
+        e(Btn, { label: 'Refresh', onClick: load }),
+        e(Btn, { label: 'Settings', onClick: () => setSettingsOpen(true) })
       )
     ),
     briefDays.length
