@@ -232,7 +232,10 @@ function Card({ card, reload }) {
         onClick: () => act('/done', { card: card.id, done: !card.done_at }),
       }),
       e('span', { className: 'grow' }),
-      e(Btn, { label: 'Not now', disabled: busy, onClick: () => setPick(pick === 'later' ? null : 'later') }),
+      // Morning briefs get no "Not now": they are per day, not something to snooze.
+      card.kind === 'brief'
+        ? null
+        : e(Btn, { label: 'Not now', disabled: busy, onClick: () => setPick(pick === 'later' ? null : 'later') }),
       e(Btn, { icon: ICON.up, label: 'Good', disabled: busy, onClick: () => act('/rate', { card: card.id, rating: 'up' }) }),
       e(Btn, { icon: ICON.down, label: 'Not good', disabled: busy, onClick: () => setPick(pick === 'down' ? null : 'down') })
     ),
