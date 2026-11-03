@@ -1,6 +1,6 @@
 # Pulse for the Hermes desktop app
 
-A desktop plugin that shows Hermes Pulse cards in the Hermes desktop app, with the same actions as the Conduit app.
+A desktop plugin that shows Hermes Pulse cards in the Hermes desktop app, with the same actions as the Conduit iOS app.
 
 ## Requirements
 - Hermes with the Conduit notifier plugin [`conduit_push`](https://github.com/kaishi00/hermes-conduit-notifier) (the Pulse API at `/api/plugins/conduit_push/pulse/...`).
