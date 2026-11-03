@@ -3,5 +3,5 @@
   "name": "Pulse",
   "description": "Pulse cards in the Hermes desktop app: read, Done, Do it, good / not good, Not now, morning brief per day.",
   "entry": "plugin.js",
-  "requires": "Hermes dashboard with the conduit_push plugin (Pulse API)"
+  "requires": "Hermes with the Conduit notifier plugin (conduit_push). For the full feed (calendar, contacts, location), also a paired Conduit phone app."
 }
