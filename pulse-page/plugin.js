@@ -534,8 +534,7 @@ function SettingsPanel({ onBack }) {
         disabled: busy,
         onChange: (v) => save({ look_first: v }),
       })
-    ),
-    e(Section, { title: 'Not in the desktop app', hint: 'These are phone-only settings in Conduit: lock screen privacy, your location, shop watching, and older-chat reading. Change them in the Conduit app.' })
+    )
   )
 }
 
